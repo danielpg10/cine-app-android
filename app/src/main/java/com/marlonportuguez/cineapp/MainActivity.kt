@@ -9,6 +9,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.marlonportuguez.cineapp.ui.screens.auth.AuthScreen
 import com.marlonportuguez.cineapp.ui.theme.CineAppTheme
 
@@ -22,8 +25,37 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AuthScreen(onAuthSuccess = {})
+                    CineAppNavigation()
                 }
+            }
+        }
+    }
+}
+
+object Routes {
+    const val AUTH_SCREEN = "auth_screen"
+    const val HOME_SCREEN = "home_screen"
+}
+
+@Composable
+fun CineAppNavigation() {
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = Routes.AUTH_SCREEN) {
+        composable(Routes.AUTH_SCREEN) {
+            AuthScreen(
+                onAuthSuccess = {
+                    navController.navigate(Routes.HOME_SCREEN) {
+                        popUpTo(Routes.AUTH_SCREEN) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.HOME_SCREEN) {
+            // Contenido de la pantalla principal despuds de login
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                // Aquí va el Composable de HomeScreen
             }
         }
     }
