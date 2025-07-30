@@ -61,6 +61,8 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.code.gson:gson:2.13.1")
+    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)

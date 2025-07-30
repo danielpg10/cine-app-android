@@ -29,7 +29,7 @@ class AcquiredMoviesViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val _cancellationSuccess = MutableStateFlow(false) // Nuevo estado para éxito de cancelación
+    private val _cancellationSuccess = MutableStateFlow(false)
     val cancellationSuccess: StateFlow<Boolean> = _cancellationSuccess.asStateFlow()
 
     fun loadAcquiredMovies() {
@@ -64,7 +64,7 @@ class AcquiredMoviesViewModel(
         }
     }
 
-    // Nueva función para cancelar un boleto adquirido
+    // Cancela un boleto adquirido por el usuario
     fun cancelPurchasedTicket(entry: UserHistoryEntry) {
         val currentUserId = auth.currentUser?.uid
         if (currentUserId == null) {
@@ -82,21 +82,21 @@ class AcquiredMoviesViewModel(
 
         viewModelScope.launch {
             try {
-                // 1. Obtener el Showtime original para actualizar los asientos
+                // Obtener el horario de función para actualizar asientos disponibles
                 val showtimeDoc = firestore.collection("showtimes").document(entry.showtimeId).get().await()
                 val showtime = showtimeDoc.toObject(Showtime::class.java)
                 if (showtime == null) {
                     throw Exception("Horario de función no encontrado para la cancelación.")
                 }
 
-                // 2. Obtener la película para los detalles del historial
+                // Obtener la película para los detalles del historial
                 val movieDoc = firestore.collection("movies").document(entry.movieId).get().await()
                 val movie = movieDoc.toObject(Movie::class.java)
                 if (movie == null) {
                     throw Exception("Película no encontrada para la cancelación.")
                 }
 
-                // 3. Actualizar asientos disponibles en el horario (Firestore Transaction)
+                // Actualizar asientos disponibles en el horario (Firestore Transaction)
                 val showtimeRef = firestore.collection("showtimes").document(showtime.id)
                 firestore.runTransaction { transaction ->
                     val freshShowtime = transaction.get(showtimeRef).toObject(Showtime::class.java)
@@ -107,7 +107,7 @@ class AcquiredMoviesViewModel(
                     null
                 }.await()
 
-                // 4. Registrar la transacción de cancelación
+                // Registrdr la transacción de cancelación
                 val transactionData = hashMapOf(
                     "userId" to currentUserId,
                     "showtimeId" to entry.showtimeId,
@@ -133,7 +133,7 @@ class AcquiredMoviesViewModel(
                 firestore.collection("userHistory").add(userHistoryData).await()
 
                 _cancellationSuccess.value = true
-                loadAcquiredMovies() // Recargar la lista después de la cancelación
+                loadAcquiredMovies()
             } catch (e: Exception) {
                 _error.value = e.localizedMessage ?: "Error al procesar la cancelación."
             } finally {

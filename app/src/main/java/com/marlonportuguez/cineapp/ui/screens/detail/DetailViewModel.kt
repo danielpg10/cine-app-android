@@ -137,7 +137,9 @@ class DetailViewModel(
                     "details" to "$numberOfTickets boletos para ${currentMovie.title}",
                     "moviePosterUrl" to currentMovie.posterUrl,
                     "numberOfTickets" to numberOfTickets,
-                    "totalAmount" to showtime.price * numberOfTickets
+                    "totalAmount" to showtime.price * numberOfTickets,
+                    "showtimeStartTime" to showtime.startTime.toDate().time,
+                    "durationMinutes" to currentMovie.durationMinutes
                 )
                 firestore.collection("userHistory").add(userHistoryData).await()
 
@@ -150,7 +152,6 @@ class DetailViewModel(
         }
     }
 
-    // Lógica de cancelación de boletos desde el historial
     fun cancelTickets(entry: UserHistoryEntry) {
         val currentUserId = auth.currentUser?.uid
         if (currentUserId == null) {
@@ -216,7 +217,9 @@ class DetailViewModel(
                     "details" to "${entry.numberOfTickets} boletos cancelados para ${movie.title}",
                     "moviePosterUrl" to movie.posterUrl,
                     "numberOfTickets" to entry.numberOfTickets,
-                    "totalAmount" to -entry.totalAmount
+                    "totalAmount" to -entry.totalAmount,
+                    "showtimeStartTime" to entry.showtimeStartTime,
+                    "durationMinutes" to entry.durationMinutes
                 )
                 firestore.collection("userHistory").add(userHistoryData).await()
 

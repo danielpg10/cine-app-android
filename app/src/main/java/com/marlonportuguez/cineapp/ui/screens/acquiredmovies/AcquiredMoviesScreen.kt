@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,7 +73,8 @@ import androidx.lifecycle.ViewModel as AndroidxViewModel
 fun AcquiredMoviesScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    acquiredMoviesViewModel: AcquiredMoviesViewModel = viewModel()
+    acquiredMoviesViewModel: AcquiredMoviesViewModel = viewModel(),
+    onReviewClick: (UserHistoryEntry) -> Unit
 ) {
     val acquiredMovies by acquiredMoviesViewModel.acquiredMovies.collectAsState()
     val isLoading by acquiredMoviesViewModel.isLoading.collectAsState()
@@ -172,6 +175,7 @@ fun AcquiredMoviesScreen(
                                 UserHistoryCard(
                                     entry = entry,
                                     onCancelClick = { acquiredMoviesViewModel.cancelPurchasedTicket(entry) },
+                                    onReviewClick = onReviewClick,
                                     isProcessing = isLoading
                                 )
                             }
@@ -235,6 +239,7 @@ fun AcquiredMoviesScreen(
 fun UserHistoryCard(
     entry: UserHistoryEntry,
     onCancelClick: () -> Unit,
+    onReviewClick: (UserHistoryEntry) -> Unit,
     isProcessing: Boolean
 ) {
     val dateFormat = SimpleDateFormat("dd 'de' MMMM, hh:mm a", Locale.getDefault())
@@ -242,6 +247,13 @@ fun UserHistoryCard(
 
     val isPurchased = entry.action == "purchased"
     val statusColor = if (isPurchased) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+
+    // Calcular si la película ya terminó para habilitar el botón de opinar
+    val isMovieFinished = try {
+        entry.showtimeStartTime + (entry.durationMinutes * 60 * 1000L) < System.currentTimeMillis()
+    } catch (e: Exception) {
+        false // Si hay error en el cálculo, no habilitar el botón
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -380,45 +392,97 @@ fun UserHistoryCard(
                 }
             }
 
-            // Botón de cancelar pa comprss
+            // Botones de acción para compras
             if (isPurchased) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                Button(
-                    onClick = onCancelClick,
-                    enabled = !isProcessing,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        disabledContainerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (isProcessing) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                    // Botón Cancelar
+                    Button(
+                        onClick = onCancelClick,
+                        enabled = !isProcessing,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            disabledContainerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (isProcessing) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Cancelando...",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                )
+                            }
+                        } else {
                             Text(
-                                "Cancelando...",
+                                "Cancelar",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.SemiBold
                                 )
                             )
                         }
-                    } else {
-                        Text(
-                            "Cancelar Boleto",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        )
                     }
+
+                    // Botón Opinar
+                    OutlinedButton(
+                        onClick = { onReviewClick(entry) },
+                        enabled = !isProcessing && isMovieFinished,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (isMovieFinished) MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = 0.3f),
+                            disabledContentColor = Color.White.copy(alpha = 0.3f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isMovieFinished) MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.RateReview,
+                                contentDescription = "Opinar",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                if (isMovieFinished) "Opinar" else "Pendiente",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Mensaje informativo para el botón de opinar
+                if (!isMovieFinished && isPurchased) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Podrás opinar cuando termine la función",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -438,7 +502,9 @@ fun AcquiredMoviesScreenPreview() {
                 action = "purchased",
                 actionDate = Timestamp(System.currentTimeMillis() / 1000, 0),
                 details = "2 boletos para Superman",
-                moviePosterUrl = "https://sacnkprodarcms.blob.core.windows.net/content/posters/HO00010495.jpg"
+                moviePosterUrl = "https://sacnkprodarcms.blob.core.windows.net/content/posters/HO00010495.jpg",
+                showtimeStartTime = System.currentTimeMillis() - 7200000, // 2 horas atrás
+                durationMinutes = 143
             ),
             UserHistoryEntry(
                 id = "hist2",
@@ -448,7 +514,9 @@ fun AcquiredMoviesScreenPreview() {
                 action = "cancelled",
                 actionDate = Timestamp(System.currentTimeMillis() / 1000 - 3600, 0),
                 details = "1 boleto cancelado para Hachiko",
-                moviePosterUrl = "https://upload.wikimedia.org/wikipedia/en/5/5a/Hachi_A_Dog%27s_Tale_poster.jpg"
+                moviePosterUrl = "https://upload.wikimedia.org/wikipedia/en/5/5a/Hachi_A_Dog%27s_Tale_poster.jpg",
+                showtimeStartTime = System.currentTimeMillis() + 3600000, // 1 hora en el futuro
+                durationMinutes = 93
             )
         )
         val previewViewModel = object : AndroidxViewModel() {
@@ -461,6 +529,10 @@ fun AcquiredMoviesScreenPreview() {
             fun resetCancellationSuccess() {}
             fun cancelPurchasedTicket(entry: UserHistoryEntry) {}
         }
-        AcquiredMoviesScreen(onBack = {}, acquiredMoviesViewModel = previewViewModel as AcquiredMoviesViewModel)
+        AcquiredMoviesScreen(
+            onBack = {},
+            acquiredMoviesViewModel = previewViewModel as AcquiredMoviesViewModel,
+            onReviewClick = {}
+        )
     }
 }

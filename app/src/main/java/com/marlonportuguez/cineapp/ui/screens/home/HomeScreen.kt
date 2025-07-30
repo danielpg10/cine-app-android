@@ -68,7 +68,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     homeViewModel: HomeViewModel = viewModel(),
     onMovieClick: (String) -> Unit,
-    onViewAcquiredMoviesClick: () -> Unit // AÑADIDO ESTE PARÁMETRO
+    onViewAcquiredMoviesClick: () -> Unit
 ) {
     val movies by homeViewModel.movies.collectAsState()
     val isLoading by homeViewModel.isLoading.collectAsState()
@@ -114,7 +114,7 @@ fun HomeScreen(
                     )
                 )
             },
-            floatingActionButton = { // FloatingActionButton para navegar a películas adquiridas
+            floatingActionButton = {
                 FloatingActionButton(
                     onClick = onViewAcquiredMoviesClick,
                     containerColor = MaterialTheme.colorScheme.secondary,

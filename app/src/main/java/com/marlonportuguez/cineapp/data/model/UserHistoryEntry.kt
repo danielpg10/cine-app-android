@@ -13,5 +13,7 @@ data class UserHistoryEntry(
     val details: String = "",
     val moviePosterUrl: String = "",
     val numberOfTickets: Int = 0,
-    val totalAmount: Double = 0.0
+    val totalAmount: Double = 0.0,
+    val showtimeStartTime: Long = 0L,
+    val durationMinutes: Int = 0
 )
