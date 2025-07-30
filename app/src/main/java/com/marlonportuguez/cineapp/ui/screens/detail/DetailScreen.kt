@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,6 +27,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -34,12 +36,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -73,6 +79,7 @@ fun DetailScreen(
     val showtimes by detailViewModel.showtimes.collectAsState()
     val isLoading by detailViewModel.isLoading.collectAsState()
     val error by detailViewModel.error.collectAsState()
+    val purchaseSuccess by detailViewModel.purchaseSuccess.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(movieId) {
@@ -88,6 +95,14 @@ fun DetailScreen(
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
             detailViewModel.resetError()
+        }
+    }
+
+    LaunchedEffect(purchaseSuccess) {
+        if (purchaseSuccess) {
+            Toast.makeText(context, "Compra realizada con éxito!", Toast.LENGTH_LONG).show()
+            detailViewModel.resetPurchaseSuccess()
+            movieId?.let { detailViewModel.loadMovieDetails(it) }
         }
     }
 
@@ -140,10 +155,14 @@ fun DetailScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             showtimes.forEach { (showtime, theater) ->
-                                ShowtimeCard(showtime = showtime, theater = theater) {
-                                    // Lógica de compra
-                                    Toast.makeText(context, "Comprar ${movie?.title} ${showtime.startTime.toDate()}", Toast.LENGTH_SHORT).show()
-                                }
+                                ShowtimeCard(
+                                    showtime = showtime,
+                                    theater = theater,
+                                    onBuyClick = { numberOfTickets ->
+                                        detailViewModel.buyTickets(showtime, numberOfTickets)
+                                    },
+                                    isProcessing = isLoading
+                                )
                             }
                         }
                     } else {
@@ -203,12 +222,14 @@ fun MovieDetailHeader(movie: Movie) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShowtimeCard(showtime: Showtime, theater: Theater, onBuyClick: () -> Unit) {
+fun ShowtimeCard(showtime: Showtime, theater: Theater, onBuyClick: (Int) -> Unit, isProcessing: Boolean) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
-    currencyFormat.currency = java.util.Currency.getInstance("COP")
+    currencyFormat.currency = Currency.getInstance("COP")
 
     val dateFormat = SimpleDateFormat("dd 'de' MMMM, hh:mm a", Locale.getDefault())
     dateFormat.timeZone = TimeZone.getTimeZone("America/Bogota")
+
+    var numberOfTickets by remember { mutableIntStateOf(1) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -243,8 +264,38 @@ fun ShowtimeCard(showtime: Showtime, theater: Theater, onBuyClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
-                Button(onClick = onBuyClick) {
-                    Text("Comprar")
+                // Selector de cantidad de boletos
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { if (numberOfTickets > 1) numberOfTickets-- },
+                        enabled = numberOfTickets > 1 && !isProcessing
+                    ) {
+                        Text("-", style = MaterialTheme.typography.titleLarge)
+                    }
+                    Text(
+                        text = numberOfTickets.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    IconButton(
+                        onClick = { if (numberOfTickets < showtime.availableSeats) numberOfTickets++ },
+                        enabled = numberOfTickets < showtime.availableSeats && !isProcessing
+                    ) {
+                        Text("+", style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = { onBuyClick(numberOfTickets) },
+                enabled = !isProcessing && showtime.availableSeats > 0 && numberOfTickets > 0,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                if (isProcessing) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Comprar (${numberOfTickets} boletos)")
                 }
             }
         }
@@ -268,7 +319,7 @@ fun DetailScreenPreview() {
             id = "sampleShowtimeId",
             movieId = "sampleMovieId",
             theaterId = "sampleTheaterId",
-            startTime = Timestamp(System.currentTimeMillis() / 1000 + 7200, 0), // 2 horas en el futuro
+            startTime = Timestamp(System.currentTimeMillis() / 1000 + 7200, 0),
             endTime = Timestamp(System.currentTimeMillis() / 1000 + 7200 + (143 * 60), 0),
             price = 28000.0,
             availableSeats = 140
@@ -284,13 +335,14 @@ fun DetailScreenPreview() {
             val showtimes = MutableStateFlow(listOf(Pair(sampleShowtime, sampleTheater))).asStateFlow()
             val isLoading = MutableStateFlow(false).asStateFlow()
             val error = MutableStateFlow<String?>(null).asStateFlow()
+            val purchaseSuccess = MutableStateFlow(false).asStateFlow()
 
-            // Métodos vacíos para la interfaz del ViewModel
             fun loadMovieDetails(movieId: String) {}
             fun resetError() {}
+            fun resetPurchaseSuccess() {}
+            fun buyTickets(showtime: Showtime, numberOfTickets: Int) {}
         }
 
-        // Se hace un cast explícito para satisfacer el tipo esperado por DetailScreen
         DetailScreen(movieId = "sampleMovieId", onBack = {}, detailViewModel = previewViewModel as DetailViewModel)
     }
 }
