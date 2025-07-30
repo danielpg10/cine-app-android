@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "500561752038",
+    "project_id": "cineappmkt",
+    "storage_bucket": "cineappmkt.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:500561752038:android:6fb88120953951e4c97027",
+        "android_client_info": {
+          "package_name": "com.marlonportuguez.cineapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "500561752038-qp5gm29vee4tk8qr3vcv7aatgol27ops.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.marlonportuguez.cineapp",
+            "certificate_hash": "d7118a92b770fa677d01b927de7b853bbd1de67e"
+          }
+        },
+        {
+          "client_id": "500561752038-f2ee5rae39fd61rp7kdijfccjbmjtd8n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMm__PUw4Hg8lPc6D1bi7s3u7LOwbSn9w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "500561752038-f2ee5rae39fd61rp7kdijfccjbmjtd8n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
