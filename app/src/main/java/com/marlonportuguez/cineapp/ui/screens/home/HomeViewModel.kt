@@ -2,7 +2,7 @@ package com.marlonportuguez.cineapp.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.marlonportuguez.cineapp.data.model.Movie
+import com.marlonportuguez.cineapp.data.model.MovieListItem
 import com.marlonportuguez.cineapp.data.repository.MovieRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +13,8 @@ class HomeViewModel(
     private val movieRepository: MovieRepository = MovieRepository()
 ) : ViewModel() {
 
-    private val _movies = MutableStateFlow<List<Movie>>(emptyList())
-    val movies: StateFlow<List<Movie>> = _movies.asStateFlow()
+    private val _movies = MutableStateFlow<List<MovieListItem>>(emptyList())
+    val movies: StateFlow<List<MovieListItem>> = _movies.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -30,11 +30,12 @@ class HomeViewModel(
         _isLoading.value = true
         _error.value = null
         viewModelScope.launch {
-            movieRepository.getAvailableMovies().collect { movieList ->
-                _movies.value = movieList
+            // Aca estou usando la nueva funcion del repositorio que devuelve la lista de MovieListItem
+            movieRepository.getMoviesForList().collect { movieItemList ->
+                _movies.value = movieItemList
                 _isLoading.value = false
-                if (movieList.isEmpty() && _error.value == null) {
-                    _error.value = "No se encontraron películas disponibles."
+                if (movieItemList.isEmpty() && _error.value == null) {
+                    _error.value = "No se encontraron películas disponibles en este momento."
                 }
             }
         }

@@ -9,10 +9,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.marlonportuguez.cineapp.ui.screens.auth.AuthScreen
+import com.marlonportuguez.cineapp.ui.screens.detail.DetailScreen // NUEVA IMPORTACIÓN
 import com.marlonportuguez.cineapp.ui.screens.home.HomeScreen
 import com.marlonportuguez.cineapp.ui.theme.CineAppTheme
 
@@ -36,6 +39,9 @@ class MainActivity : ComponentActivity() {
 object Routes {
     const val AUTH_SCREEN = "auth_screen"
     const val HOME_SCREEN = "home_screen"
+    // Definición de la ruta de detalle con un argumento
+    const val DETAIL_SCREEN = "detail_screen/{movieId}"
+    const val DETAIL_SCREEN_BASE = "detail_screen" // Ruta base sin argumento
 }
 
 @Composable
@@ -54,7 +60,24 @@ fun CineAppNavigation() {
         }
 
         composable(Routes.HOME_SCREEN) {
-            HomeScreen()
+            HomeScreen(
+                // Al hacer clic en una tarjeta de película, navegar a DetailScreen
+                onMovieClick = { movieId ->
+                    navController.navigate("${Routes.DETAIL_SCREEN_BASE}/$movieId")
+                }
+            )
+        }
+
+        // Definición del destino para DetailScreen, esperando un argumento 'movieId'
+        composable(
+            route = Routes.DETAIL_SCREEN,
+            arguments = listOf(navArgument("movieId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val movieId = backStackEntry.arguments?.getString("movieId")
+            DetailScreen(
+                movieId = movieId,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }
