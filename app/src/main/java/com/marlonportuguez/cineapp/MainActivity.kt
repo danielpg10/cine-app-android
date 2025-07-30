@@ -9,8 +9,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.marlonportuguez.cineapp.ui.screens.acquiredmovies.AcquiredMoviesScreen
+import com.marlonportuguez.cineapp.ui.screens.acquiredmovies.AcquiredMoviesViewModel
 import com.marlonportuguez.cineapp.ui.screens.auth.AuthScreen
+import com.marlonportuguez.cineapp.ui.screens.detail.DetailScreen
+import com.marlonportuguez.cineapp.ui.screens.detail.DetailViewModel
+import com.marlonportuguez.cineapp.ui.screens.home.HomeScreen
+import com.marlonportuguez.cineapp.ui.screens.review.ReviewScreen
 import com.marlonportuguez.cineapp.ui.theme.CineAppTheme
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.ViewModel as AndroidxViewModel
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,9 +40,110 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AuthScreen(onAuthSuccess = {})
+                    CineAppNavigation()
                 }
             }
         }
     }
 }
+
+object Routes {
+    const val AUTH_SCREEN = "auth_screen"
+    const val HOME_SCREEN = "home_screen"
+    const val DETAIL_SCREEN = "detail_screen/{movieId}"
+    const val DETAIL_SCREEN_BASE = "detail_screen"
+    const val ACQUIRED_MOVIES_SCREEN = "acquired_movies_screen"
+    const val REVIEW_SCREEN = "review_screen/{userHistoryEntryJson}"
+    const val REVIEW_SCREEN_BASE = "review_screen"
+}
+
+@Composable
+fun CineAppNavigation() {
+    val navController = rememberNavController()
+    val context = LocalContext.current
+
+    NavHost(navController = navController, startDestination = Routes.AUTH_SCREEN) {
+        composable(Routes.AUTH_SCREEN) {
+            AuthScreen(
+                onAuthSuccess = {
+                    navController.navigate(Routes.HOME_SCREEN) {
+                        popUpTo(Routes.AUTH_SCREEN) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.HOME_SCREEN) {
+            HomeScreen(
+                onMovieClick = { movieId ->
+                    navController.navigate("${Routes.DETAIL_SCREEN_BASE}/$movieId")
+                },
+                onViewAcquiredMoviesClick = {
+                    navController.navigate(Routes.ACQUIRED_MOVIES_SCREEN)
+                }
+            )
+        }
+
+        composable(
+            route = Routes.DETAIL_SCREEN,
+            arguments = listOf(navArgument("movieId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val movieId = backStackEntry.arguments?.getString("movieId")
+            val detailViewModel: DetailViewModel = viewModel()
+            DetailScreen(
+                movieId = movieId,
+                onBack = { navController.popBackStack() },
+                detailViewModel = detailViewModel
+            )
+        }
+
+        composable(Routes.ACQUIRED_MOVIES_SCREEN) {
+            val acquiredMoviesViewModel: AcquiredMoviesViewModel = viewModel()
+            AcquiredMoviesScreen(
+                onBack = { navController.popBackStack() },
+                acquiredMoviesViewModel = acquiredMoviesViewModel,
+                onReviewClick = { userHistoryEntry ->
+                    // Convertir UserHistoryEntry a JSON y codificarlo para la URL
+                    val userHistoryEntryGson = com.google.gson.Gson().toJson(userHistoryEntry)
+                    val encodedEntryJson = URLEncoder.encode(userHistoryEntryGson, StandardCharsets.UTF_8.toString())
+                    navController.navigate("${Routes.REVIEW_SCREEN_BASE}/$encodedEntryJson")
+                }
+            )
+        }
+
+        composable(
+            route = Routes.REVIEW_SCREEN,
+            arguments = listOf(navArgument("userHistoryEntryJson") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userHistoryEntryJson = backStackEntry.arguments?.getString("userHistoryEntryJson")
+            ReviewScreen(
+                userHistoryEntryJson = userHistoryEntryJson,
+                onReviewSubmitted = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
+// Factories de ViewModel - Desactivados
+/*
+class DetailViewModelFactory(private val localMovieRepository: LocalMovieRepository) : ViewModelProvider.Factory {
+    override fun <T : AndroidxViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+        if (modelClass.isAssignableFrom(DetailViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return DetailViewModel(localMovieRepository = localMovieRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+class AcquiredMoviesViewModelFactory(private val localMovieRepository: LocalMovieRepository) : ViewModelProvider.Factory {
+    override fun <T : AndroidxViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+        if (modelClass.isAssignableFrom(AcquiredMoviesViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AcquiredMoviesViewModel(localMovieRepository = localMovieRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+*/

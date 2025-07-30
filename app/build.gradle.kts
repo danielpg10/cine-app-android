@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+    // id("org.jetbrains.kotlin.kapt") // Desactivado por error de generación de código AppDatabase_Impl
 }
 
 android {
@@ -50,17 +51,27 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
+    implementation("androidx.navigation:navigation-compose:2.7.0")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.8")
     implementation(libs.androidx.material3)
 
-    // Uso de la BOM y módulos principales (no-ktx) según la última recomendación
+    // Uso de la BOM y módulos principales (no-ktx)
     implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.code.gson:gson:2.13.1")
+    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+
+    // Room Database - Desactivado por error de generación de código AppDatabase_Impl y para continuar con la prueba tecnica
+    // implementation("androidx.room:room-runtime:2.6.1")
+    // annotationProcessor("androidx.room:room-compiler:2.6.1")
+    // implementation("androidx.room:room-ktx:2.6.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
