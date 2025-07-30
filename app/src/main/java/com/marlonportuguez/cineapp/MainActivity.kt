@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.marlonportuguez.cineapp.ui.screens.auth.AuthScreen
+import com.marlonportuguez.cineapp.ui.screens.home.HomeScreen
 import com.marlonportuguez.cineapp.ui.theme.CineAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -53,10 +54,7 @@ fun CineAppNavigation() {
         }
 
         composable(Routes.HOME_SCREEN) {
-            // Contenido de la pantalla principal despuds de login
-            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                // Aquí va el Composable de HomeScreen
-            }
+            HomeScreen()
         }
     }
 }
