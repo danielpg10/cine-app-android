@@ -9,6 +9,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.marlonportuguez.cineapp.data.model.Movie
 import com.marlonportuguez.cineapp.data.model.Showtime
 import com.marlonportuguez.cineapp.data.model.Theater
+import com.marlonportuguez.cineapp.data.model.UserHistoryEntry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,6 @@ class DetailViewModel(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
 
-    // Estados de UI
     private val _movie = MutableStateFlow<Movie?>(null)
     val movie: StateFlow<Movie?> = _movie.asStateFlow()
 
@@ -35,6 +35,9 @@ class DetailViewModel(
 
     private val _purchaseSuccess = MutableStateFlow(false)
     val purchaseSuccess: StateFlow<Boolean> = _purchaseSuccess.asStateFlow()
+
+    private val _cancellationSuccess = MutableStateFlow(false)
+    val cancellationSuccess: StateFlow<Boolean> = _cancellationSuccess.asStateFlow()
 
     fun loadMovieDetails(movieId: String) {
         _isLoading.value = true
@@ -78,6 +81,7 @@ class DetailViewModel(
 
     fun buyTickets(showtime: Showtime, numberOfTickets: Int) {
         val currentUserId = auth.currentUser?.uid
+        val currentMovie = movie.value
         if (currentUserId == null) {
             _error.value = "Debe iniciar sesión para comprar boletos."
             return
@@ -90,10 +94,15 @@ class DetailViewModel(
             _error.value = "No hay suficientes asientos disponibles."
             return
         }
+        if (currentMovie == null) {
+            _error.value = "Detalles de película no disponibles."
+            return
+        }
 
         _isLoading.value = true
         _error.value = null
         _purchaseSuccess.value = false
+        _cancellationSuccess.value = false
 
         viewModelScope.launch {
             try {
@@ -125,7 +134,10 @@ class DetailViewModel(
                     "showtimeId" to showtime.id,
                     "action" to "purchased",
                     "actionDate" to Timestamp.now(),
-                    "details" to "$numberOfTickets boletos para ${movie.value?.title ?: "Película desconocida"}"
+                    "details" to "$numberOfTickets boletos para ${currentMovie.title}",
+                    "moviePosterUrl" to currentMovie.posterUrl,
+                    "numberOfTickets" to numberOfTickets,
+                    "totalAmount" to showtime.price * numberOfTickets
                 )
                 firestore.collection("userHistory").add(userHistoryData).await()
 
@@ -138,11 +150,94 @@ class DetailViewModel(
         }
     }
 
+    // Lógica de cancelación de boletos desde el historial
+    fun cancelTickets(entry: UserHistoryEntry) {
+        val currentUserId = auth.currentUser?.uid
+        if (currentUserId == null) {
+            _error.value = "Debe iniciar sesión para cancelar boletos."
+            return
+        }
+        if (entry.action != "purchased") {
+            _error.value = "Solo se pueden cancelar boletos comprados."
+            return
+        }
+
+        _isLoading.value = true
+        _error.value = null
+        _cancellationSuccess.value = false
+
+        viewModelScope.launch {
+            try {
+                // Obtener el Showtime original para actualizar los asientos
+                val showtimeDoc = firestore.collection("showtimes").document(entry.showtimeId).get().await()
+                val showtime = showtimeDoc.toObject(Showtime::class.java)
+                if (showtime == null) {
+                    throw Exception("Horario de función no encontrado para la cancelación.")
+                }
+
+                // Obtener la película para los detalles del historial
+                val movieDoc = firestore.collection("movies").document(entry.movieId).get().await()
+                val movie = movieDoc.toObject(Movie::class.java)
+                if (movie == null) {
+                    throw Exception("Película no encontrada para la cancelación.")
+                }
+
+                // Actualizar asientos disponibles en el horario (Firestore Transaction)
+                val showtimeRef = firestore.collection("showtimes").document(showtime.id)
+                firestore.runTransaction { transaction ->
+                    val freshShowtime = transaction.get(showtimeRef).toObject(Showtime::class.java)
+                    if (freshShowtime == null) {
+                        throw Exception("Horario de función no encontrado para la cancelación.")
+                    }
+                    transaction.update(showtimeRef, "availableSeats", FieldValue.increment(entry.numberOfTickets.toLong()))
+                    null
+                }.await()
+
+                // Registrar la transacción de cancelación
+                val transactionData = hashMapOf(
+                    "userId" to currentUserId,
+                    "showtimeId" to entry.showtimeId,
+                    "movieId" to entry.movieId,
+                    "numberOfTickets" to entry.numberOfTickets,
+                    "totalAmount" to -entry.totalAmount,
+                    "transactionDate" to Timestamp.now(),
+                    "transactionType" to "cancellation",
+                    "status" to "completed"
+                )
+                firestore.collection("transactions").add(transactionData).await()
+
+                // Registrar en el historial del usuario como cancelación
+                val userHistoryData = hashMapOf(
+                    "userId" to currentUserId,
+                    "movieId" to entry.movieId,
+                    "showtimeId" to entry.showtimeId,
+                    "action" to "cancelled",
+                    "actionDate" to Timestamp.now(),
+                    "details" to "${entry.numberOfTickets} boletos cancelados para ${movie.title}",
+                    "moviePosterUrl" to movie.posterUrl,
+                    "numberOfTickets" to entry.numberOfTickets,
+                    "totalAmount" to -entry.totalAmount
+                )
+                firestore.collection("userHistory").add(userHistoryData).await()
+
+                _cancellationSuccess.value = true
+            } catch (e: Exception) {
+                _error.value = e.localizedMessage ?: "Error al procesar la cancelación."
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun resetError() {
         _error.value = null
     }
 
     fun resetPurchaseSuccess() {
         _purchaseSuccess.value = false
+    }
+
+    fun resetCancellationSuccess() {
+        _cancellationSuccess.value = false
     }
 }
