@@ -67,6 +67,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+    implementation("com.google.android.gms:play-services-auth:21.4.0")
 
     // Room Database - Desactivado por error de generación de código AppDatabase_Impl y para continuar con la prueba tecnica
     // implementation("androidx.room:room-runtime:2.6.1")
