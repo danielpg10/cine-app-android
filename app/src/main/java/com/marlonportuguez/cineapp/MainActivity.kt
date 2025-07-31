@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,15 +19,12 @@ import androidx.navigation.navArgument
 import com.marlonportuguez.cineapp.ui.screens.acquiredmovies.AcquiredMoviesScreen
 import com.marlonportuguez.cineapp.ui.screens.acquiredmovies.AcquiredMoviesViewModel
 import com.marlonportuguez.cineapp.ui.screens.auth.AuthScreen
+import com.marlonportuguez.cineapp.ui.screens.auth.AuthViewModel
 import com.marlonportuguez.cineapp.ui.screens.detail.DetailScreen
 import com.marlonportuguez.cineapp.ui.screens.detail.DetailViewModel
 import com.marlonportuguez.cineapp.ui.screens.home.HomeScreen
 import com.marlonportuguez.cineapp.ui.screens.review.ReviewScreen
 import com.marlonportuguez.cineapp.ui.theme.CineAppTheme
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.lifecycle.ViewModel as AndroidxViewModel
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -62,6 +60,8 @@ fun CineAppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
+    val authViewModel: AuthViewModel = viewModel()
+
     NavHost(navController = navController, startDestination = Routes.AUTH_SCREEN) {
         composable(Routes.AUTH_SCREEN) {
             AuthScreen(
@@ -80,6 +80,12 @@ fun CineAppNavigation() {
                 },
                 onViewAcquiredMoviesClick = {
                     navController.navigate(Routes.ACQUIRED_MOVIES_SCREEN)
+                },
+                onLogoutClick = {
+                    authViewModel.signOut()
+                    navController.navigate(Routes.AUTH_SCREEN) {
+                        popUpTo(Routes.HOME_SCREEN) { inclusive = true }
+                    }
                 }
             )
         }
@@ -103,7 +109,6 @@ fun CineAppNavigation() {
                 onBack = { navController.popBackStack() },
                 acquiredMoviesViewModel = acquiredMoviesViewModel,
                 onReviewClick = { userHistoryEntry ->
-                    // Convertir UserHistoryEntry a JSON y codificarlo para la URL
                     val userHistoryEntryGson = com.google.gson.Gson().toJson(userHistoryEntry)
                     val encodedEntryJson = URLEncoder.encode(userHistoryEntryGson, StandardCharsets.UTF_8.toString())
                     navController.navigate("${Routes.REVIEW_SCREEN_BASE}/$encodedEntryJson")

@@ -1,6 +1,8 @@
 package com.marlonportuguez.cineapp.ui.screens.auth
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -53,6 +56,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.GoogleAuthProvider
 import com.marlonportuguez.cineapp.R
 import com.marlonportuguez.cineapp.ui.theme.CineAppTheme
 
@@ -71,7 +78,34 @@ fun AuthScreen(
 
     val context = LocalContext.current
 
-    // Efecto para manejar errores de autenticación
+    // Configuración de Google Sign-In
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    // Lanzador para el resultado de Google Sign-In
+    val googleSignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            if (account.idToken != null) {
+                val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+                authViewModel.signInWithGoogle(credential)
+            } else {
+                authViewModel.resetAuthError()
+                Toast.makeText(context, "No se pudo obtener el ID Token de Google.", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: ApiException) {
+            authViewModel.resetAuthError()
+            Toast.makeText(context, "Error al iniciar sesión con Google: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
     LaunchedEffect(authError) {
         authError?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -79,7 +113,6 @@ fun AuthScreen(
         }
     }
 
-    // Efecto para manejar éxito de autenticación
     LaunchedEffect(authSuccess) {
         if (authSuccess) {
             Toast.makeText(context, "Autenticación exitosa", Toast.LENGTH_SHORT).show()
@@ -151,7 +184,7 @@ fun AuthScreen(
                 modifier = Modifier.padding(bottom = 40.dp)
             )
 
-            // Formulario de autenticación principal
+            // Formulario de autenticación
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -253,7 +286,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Separador
+            // Separador visual
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -279,7 +312,7 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             ElevatedButton(
-                onClick = { authViewModel.signInWithGoogle() },
+                onClick = { googleSignInLauncher.launch(googleSignInClient.signInIntent) },
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()

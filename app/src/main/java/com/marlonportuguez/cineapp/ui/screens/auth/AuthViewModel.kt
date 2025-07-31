@@ -3,6 +3,7 @@ package com.marlonportuguez.cineapp.ui.screens.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +13,6 @@ import kotlinx.coroutines.tasks.await
 
 class AuthViewModel : ViewModel() {
 
-    // Estados de UI
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email
 
@@ -31,7 +31,6 @@ class AuthViewModel : ViewModel() {
     private val _authSuccess = MutableStateFlow(false)
     val authSuccess: StateFlow<Boolean> = _authSuccess
 
-    // Instancias de Firebase
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
@@ -74,13 +73,14 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // Google Sign-In pendiente
-    fun signInWithGoogle() {
+    // Implementación Google Sign-In con Firebase
+    fun signInWithGoogle(credential: AuthCredential) {
         _isLoading.value = true
         _authError.value = null
 
         viewModelScope.launch {
             try {
+                auth.signInWithCredential(credential).await() // Autenticar con la credencial de Google
                 _authSuccess.value = true
                 addSessionLog(auth.currentUser?.uid, "login_google")
             } catch (e: Exception) {
@@ -91,7 +91,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // Guarda usuario en Firestore
     private fun saveUserToFirestore(uid: String?, email: String) {
         uid ?: return
 
@@ -111,7 +110,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // Registra actividad de sesión
     fun addSessionLog(uid: String?, action: String) {
         uid ?: return
 
@@ -128,6 +126,12 @@ class AuthViewModel : ViewModel() {
                 // Manejo de errores de log
             }
         }
+    }
+
+    fun signOut() {
+        val currentUserId = auth.currentUser?.uid
+        auth.signOut()
+        addSessionLog(currentUserId, "logout")
     }
 
     fun resetAuthSuccess() {
